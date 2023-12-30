@@ -56,7 +56,7 @@ model:
                 hashgrid:
                     min_logres: 5
                     max_logres: 11
-                    dict_size: 22
+                    dict_size: 21
                     dim: 8
                     range: [-2,2]
                 coarse2fine:
@@ -131,11 +131,11 @@ data:
     root: datasets/nerf-synthetic/lego
     use_multi_epoch_loader: True
     num_workers: 4
-    preload: True
+    preload: False
     num_images:  # The number of training images.
     train:
         image_size: [800,800]
-        batch_size: 2
+        batch_size: 4
         subset:
     val:
         image_size: [400,400]

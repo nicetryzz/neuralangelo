@@ -32,6 +32,7 @@ checkpoints
 
 # log folder
 logs/
+test.py
 
 # dataset folder
 datasets/
