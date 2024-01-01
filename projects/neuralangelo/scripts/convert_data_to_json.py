@@ -178,7 +178,7 @@ def export_to_json(cameras, images, bounding_box, center, radius, file_path):
         c2w = np.linalg.inv(w2c)
         c2w = _cv_to_gl(c2w)  # convert to GL convention used in iNGP
 
-        frame = {"file_path": "images/" + img.name, "transform_matrix": c2w.tolist()}
+        frame = {"image_path": "images/" + img.name, "depth_path": "depth/" + os.path.splitext(os.path.basename(img.name))[0] + ".pfm", "transform_matrix": c2w.tolist()}
         out["frames"].append(frame)
 
     with open(file_path, "w") as outputfile:

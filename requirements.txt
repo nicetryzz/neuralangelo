@@ -33,3 +33,4 @@ termcolor
 tqdm
 trimesh
 wandb
+pypfm

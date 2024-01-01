@@ -15,6 +15,7 @@ import numpy as np
 import torch
 import torchvision.transforms.functional as torchvision_F
 from PIL import Image, ImageFile
+from pypfm import PFMLoader
 
 from projects.nerf.datasets import base
 from projects.nerf.utils import camera
@@ -40,9 +41,11 @@ class Dataset(base.Dataset):
             self.list = [self.list[i] for i in subset_idx]
         self.num_rays = cfg.model.render.rand_rays
         self.readjust = getattr(cfg_data, "readjust", None)
+        self.depth_loader = PFMLoader(color=False, compress=False)
         # Preload dataset if possible.
         if cfg_data.preload:
             self.images = self.preload_threading(self.get_image, cfg_data.num_workers)
+            self.depth = self.preload_threading(self.get_depth, cfg_data.num_workers)
             self.cameras = self.preload_threading(self.get_camera, cfg_data.num_workers, data_str="cameras")
 
     def __getitem__(self, idx):
@@ -54,6 +57,7 @@ class Dataset(base.Dataset):
                  idx (scalar): The index of the sample of the dataset.
                  image (R tensor): Image idx for per-image embedding.
                  image (Rx3 tensor): Image with pixel values in [0,1] for supervision.
+                 depth (Rx3 tensor): Relative depth with pixel values in double for supervision.
                  intr (3x3 tensor): The camera intrinsics of `image`.
                  pose (3x4 tensor): The camera extrinsics [R,t] of `image`.
         """
@@ -61,7 +65,10 @@ class Dataset(base.Dataset):
         sample = dict(idx=idx)
         # Get the images.
         image, image_size_raw = self.images[idx] if self.preload else self.get_image(idx)
-        image = self.preprocess_image(image)
+        image = self.preprocess_image(image,3)
+        # Get the relative depth.
+        depth, depth_size_raw = self.depth[idx] if self.preload else self.get_depth(idx)
+        depth = self.preprocess_image(depth,1)
         # Get the cameras (intrinsics and pose).
         intr, pose = self.cameras[idx] if self.preload else self.get_camera(idx)
         intr, pose = self.preprocess_camera(intr, pose, image_size_raw)
@@ -69,33 +76,44 @@ class Dataset(base.Dataset):
         if self.split == "train":
             ray_idx = torch.randperm(self.H * self.W)[:self.num_rays]  # [R]
             image_sampled = image.flatten(1, 2)[:, ray_idx].t()  # [R,3]
+            depth_sampled = depth.flatten(1, 2)[:, ray_idx].t()  # [R,3]
             sample.update(
                 ray_idx=ray_idx,
                 image_sampled=image_sampled,
+                depth_sampled=depth_sampled,
                 intr=intr,
                 pose=pose,
             )
         else:  # keep image during inference
             sample.update(
                 image=image,
+                depth=depth,
                 intr=intr,
                 pose=pose,
             )
         return sample
 
     def get_image(self, idx):
-        fpath = self.list[idx]["file_path"]
+        fpath = self.list[idx]["image_path"]
         image_fname = f"{self.root}/{fpath}"
         image = Image.open(image_fname)
         image.load()
         image_size_raw = image.size
         return image, image_size_raw
+    
+    def get_depth(self, idx):
+        fpath = self.list[idx]["depth_path"]
+        depth_fname = f"{self.root}/{fpath}"
+        depth = self.depth_loader.load_pfm(depth_fname)
+        depth = Image.fromarray(depth)
+        depth_size_raw = depth.size
+        return depth, depth_size_raw
 
-    def preprocess_image(self, image):
+    def preprocess_image(self, image, channel):
         # Resize the image.
         image = image.resize((self.W, self.H))
         image = torchvision_F.to_tensor(image)
-        rgb = image[:3]
+        rgb = image[:channel]
         return rgb
 
     def get_camera(self, idx):
