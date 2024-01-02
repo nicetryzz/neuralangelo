@@ -17,7 +17,7 @@ import wandb
 from imaginaire.utils.distributed import master_only
 from imaginaire.utils.visualization import wandb_image
 from projects.nerf.trainers.base import BaseTrainer
-from projects.neuralangelo.utils.misc import get_scheduler, eikonal_loss, curvature_loss
+from projects.neuralangelo.utils.misc import get_scheduler, eikonal_loss, curvature_loss, depth_loss
 
 
 class Trainer(BaseTrainer):
@@ -33,6 +33,7 @@ class Trainer(BaseTrainer):
 
     def _init_loss(self, cfg):
         self.criteria["render"] = torch.nn.L1Loss()
+        self.criteria["depth"] = torch.nn.MSELoss()
 
     def setup_scheduler(self, cfg, optim):
         return get_scheduler(cfg.optim, optim)
@@ -44,6 +45,11 @@ class Trainer(BaseTrainer):
             self.metrics["psnr"] = -10 * torch_F.mse_loss(data["rgb"], data["image_sampled"]).log10()
             if "eikonal" in self.weights.keys():
                 self.losses["eikonal"] = eikonal_loss(data["gradients"], outside=data["outside"])
+            if "depth" in self.weights.keys():
+                A = torch.cat((data["depth"], torch.ones(data["depth"].shape)), dim=-1)
+                B = data["depth_sampled"]
+                X, info = torch.linalg.lstsq(A, B)
+                self.losses["depth"] = self.criteria["depth"](A @ X, B)
             if "curvature" in self.weights:
                 self.losses["curvature"] = curvature_loss(data["hessians"], outside=data["outside"])
         else:
@@ -84,6 +90,8 @@ class Trainer(BaseTrainer):
             scalars[f"{mode}/curvature_weight"] = self.weights["curvature"]
         if "eikonal" in self.weights:
             scalars[f"{mode}/eikonal_weight"] = self.weights["eikonal"]
+        if "depth" in self.weights:
+            scalars[f"{mode}/depth_weight"] = self.weights["depth"]
         if mode == "train" and self.cfg_gradient.mode == "numerical":
             scalars[f"{mode}/epsilon"] = self.model.module.neural_sdf.normal_eps
         if self.cfg.model.object.sdf.encoding.coarse2fine.enabled:

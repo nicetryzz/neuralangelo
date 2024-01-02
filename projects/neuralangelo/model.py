@@ -101,10 +101,9 @@ class Model(BaseModel):
         for center, ray, _ in self.ray_generator(pose, intr, image_size, full_image=True):
             ray_unit = torch_F.normalize(ray, dim=-1)  # [B,R,3]
             output_batch = self.render_rays(center, ray_unit, sample_idx=sample_idx, stratified=stratified)
-            if not self.training:
-                dist = render.composite(output_batch["dists"], output_batch["weights"])  # [B,R,1]
-                depth = dist / ray.norm(dim=-1, keepdim=True)
-                output_batch.update(depth=depth)
+            dist = render.composite(output_batch["dists"], output_batch["weights"])  # [B,R,1]
+            depth = dist / ray.norm(dim=-1, keepdim=True)
+            output_batch.update(depth=depth)
             for key, value in output_batch.items():
                 if value is not None:
                     output[key].append(value.detach())
@@ -119,6 +118,9 @@ class Model(BaseModel):
         ray = nerf_util.slice_by_ray_idx(ray, ray_idx)  # [B,R,3]
         ray_unit = torch_F.normalize(ray, dim=-1)  # [B,R,3]
         output = self.render_rays(center, ray_unit, sample_idx=sample_idx, stratified=stratified)
+        dist = render.composite(output["dists"], output["weights"])  # [B,R,1]
+        depth = dist / ray.norm(dim=-1, keepdim=True)
+        output.update(depth=depth)
         return output
 
     def render_rays(self, center, ray_unit, sample_idx=None, stratified=False):

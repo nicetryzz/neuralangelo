@@ -76,7 +76,7 @@ class Dataset(base.Dataset):
         if self.split == "train":
             ray_idx = torch.randperm(self.H * self.W)[:self.num_rays]  # [R]
             image_sampled = image.flatten(1, 2)[:, ray_idx].t()  # [R,3]
-            depth_sampled = depth.flatten(1, 2)[:, ray_idx].t()  # [R,3]
+            depth_sampled = depth.flatten(1, 2)[:, ray_idx].t()  # [R,1]
             sample.update(
                 ray_idx=ray_idx,
                 image_sampled=image_sampled,
