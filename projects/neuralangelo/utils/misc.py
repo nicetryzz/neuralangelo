@@ -17,6 +17,8 @@ import torch.nn.functional as torch_F
 import imaginaire.trainers.utils
 from torch.optim import lr_scheduler
 
+from nerfstudio.model_components.losses import ScaleAndShiftInvariantLoss
+
 flip_mat = np.array([
     [1, 0, 0, 0],
     [0, -1, 0, 0],
@@ -115,3 +117,16 @@ def to_full_image(image, image_size=None, from_vec=True):
         image = image.unflatten(dim=1, sizes=image_size)
     image = image.moveaxis(-1, 1)
     return image
+
+def monosdf_depth_loss(
+    termination_depth,
+    predicted_depth,
+    directions_norm = None,
+    is_euclidean = True,
+):
+    """MonoSDF depth loss"""
+    if not is_euclidean:
+        termination_depth = termination_depth * directions_norm
+    sift_depth_loss = ScaleAndShiftInvariantLoss(alpha=0.5, scales=1)
+    mask = torch.ones_like(termination_depth).reshape(1, 32, -1).bool()
+    return sift_depth_loss(predicted_depth.reshape(1, 32, -1), (termination_depth * 50 + 0.5).reshape(1, 32, -1), mask)

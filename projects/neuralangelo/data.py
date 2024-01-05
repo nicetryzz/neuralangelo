@@ -105,6 +105,7 @@ class Dataset(base.Dataset):
         fpath = self.list[idx]["depth_path"]
         depth_fname = f"{self.root}/{fpath}"
         depth = self.depth_loader.load_pfm(depth_fname)
+        depth = np.interp (depth, (depth.min (), depth.max ()), (0, 1))
         depth = Image.fromarray(depth)
         depth_size_raw = depth.size
         return depth, depth_size_raw

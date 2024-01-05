@@ -34,7 +34,7 @@ trainer:
         type: none
     amp_config:
         enabled: False
-    depth_vis_scale: 0.5
+    depth_vis_scale: 0.25
 
 model:
     type: projects.neuralangelo.model

@@ -17,7 +17,7 @@ import wandb
 from imaginaire.utils.distributed import master_only
 from imaginaire.utils.visualization import wandb_image
 from projects.nerf.trainers.base import BaseTrainer
-from projects.neuralangelo.utils.misc import get_scheduler, eikonal_loss, curvature_loss, depth_loss
+from projects.neuralangelo.utils.misc import get_scheduler, eikonal_loss, curvature_loss, monosdf_depth_loss
 
 
 class Trainer(BaseTrainer):
@@ -46,10 +46,7 @@ class Trainer(BaseTrainer):
             if "eikonal" in self.weights.keys():
                 self.losses["eikonal"] = eikonal_loss(data["gradients"], outside=data["outside"])
             if "depth" in self.weights.keys():
-                A = torch.cat((data["depth"], torch.ones(data["depth"].shape)), dim=-1)
-                B = data["depth_sampled"]
-                X, info = torch.linalg.lstsq(A, B)
-                self.losses["depth"] = self.criteria["depth"](A @ X, B)
+                self.losses["depth"] = monosdf_depth_loss(data["depth"], data["depth_sampled"])
             if "curvature" in self.weights:
                 self.losses["curvature"] = curvature_loss(data["hessians"], outside=data["outside"])
         else:
