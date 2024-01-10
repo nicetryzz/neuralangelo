@@ -84,7 +84,7 @@ class Dataset(base.Dataset):
         return sample
 
     def get_image(self, idx):
-        fpath = self.list[idx]["file_path"]
+        fpath = self.list[idx]["image_path"]
         image_fname = f"{self.root}/{fpath}"
         image = Image.open(image_fname)
         image.load()
